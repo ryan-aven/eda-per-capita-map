@@ -1,0 +1,53 @@
+library(tigris)
+library(dplyr)
+library(leaflet)
+library(readxl)
+library(plyr)
+
+#adding the the Census state shape files
+states <- states(cb=T)
+
+#Creates a map with state files in leaflet
+states %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(popup=~NAME)
+
+#adding the data
+states_funding <- read_excel("C:/Users/raven/OneDrive - U.S. Department of Commerce/Desktop/states_funding.xlsx")
+
+#determining a color palette and assigning based on the value in our uploaded data
+pal <- colorNumeric("Reds", domain=states_funding$`Funding to Population`)
+
+#building a consolidated data file based off of states
+states_merged <- geo_join(states, states_funding, "NAME", "Name")
+
+#omitting those pesky NA values
+na.omit(states_merged)
+
+#Popup text values that display when you hover your cursor over a state
+popup_text <- paste0(as.character(states_merged$NAME), ": $", as.character(states_merged$`Funding to Population`))
+
+#And that's a wrap. Here's the final map:
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  setView(-98.483330, 38.712046, zoom = 4) %>% 
+  addPolygons(data = states_merged, 
+              fillColor = ~pal(states_merged$`Funding to Population`), 
+              fillOpacity = 1.2, 
+              weight = 0.2, 
+              smoothFactor = 0.2,
+              highlight = highlightOptions(
+                weight = 5,
+                color = "#666",
+                fillOpacity = 0.7,
+                bringToFront = TRUE),
+              label=popup_text,
+              labelOptions = labelOptions(
+                style = list("font-weight" = "normal", padding = "3px 8px"),
+                textsize = "15px",
+                direction = "auto")) %>%
+  addLegend(pal = pal, 
+            values = states_merged$`Funding to Population`, 
+            position = "bottomright", 
+            title = "2020 EDA Awards <br>per Capita (USD)")
